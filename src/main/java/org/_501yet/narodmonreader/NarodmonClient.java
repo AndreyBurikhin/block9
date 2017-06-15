@@ -13,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -41,11 +42,10 @@ public class NarodmonClient {
     }
 
     public List<NarodmonSensor> readSensors(String... ids) {
-        MultiValueMap<String, String> sensorsIds = new LinkedMultiValueMap<>();
-        for (String id : ids) {
-            sensorsIds.add("sensors", id);
-        }
-        String requestURL = buildUrl("sensorsValues", sensorsIds);
+        MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
+        String sensors = StringUtils.arrayToCommaDelimitedString(ids);
+        params.add("sensors", sensors);
+        String requestURL = buildUrl("sensorsValues", params);
         HttpEntity<String> entity = new HttpEntity<String>(headers);
         ResponseEntity<NarodmonSensors> responce = restTemplate.exchange(requestURL, HttpMethod.GET, entity, NarodmonSensors.class);
         if (responce.getStatusCode() != HttpStatus.OK) {

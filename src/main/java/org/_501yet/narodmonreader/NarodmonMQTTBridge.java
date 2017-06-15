@@ -11,7 +11,9 @@ import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.integration.annotation.IntegrationComponentScan;
 import org.springframework.integration.annotation.ServiceActivator;
+import org.springframework.integration.annotation.Transformer;
 import org.springframework.integration.channel.DirectChannel;
+import org.springframework.integration.json.ObjectToJsonTransformer;
 import org.springframework.integration.mqtt.core.DefaultMqttPahoClientFactory;
 import org.springframework.integration.mqtt.core.MqttPahoClientFactory;
 import org.springframework.integration.mqtt.outbound.MqttPahoMessageHandler;
@@ -45,6 +47,9 @@ public class NarodmonMQTTBridge {
 	
 	@Autowired
 	private NarodmonService narodmonService;
+	
+	@Autowired
+	private FakeDataSerivce fakeDataSerivce;
 
 	public static void main(String[] args) throws IOException {
 		try (ConfigurableApplicationContext context = new SpringApplicationBuilder(NarodmonMQTTBridge.class).web(false)
@@ -58,9 +63,18 @@ public class NarodmonMQTTBridge {
 
 	@Scheduled(fixedRateString = "${gateway.update.interval:60000}")
 	public void scheduleFixedRateTask() {
-		List<NarodmonSensor> sensors = narodmonService.readSensors();
+//		List<NarodmonSensor> sensors = narodmonService.readSensors();
+//		sensors.forEach(sensor -> {
+//			TemperatureMessage message = new TemperatureMessage();
+//			message.setValue(Double.valueOf(sensor.getValue()));
+//			narodmonGateway.sendToMqtt(TOPIC_NAME + sensor.getId(), message);
+//		});
+		List<NarodmonSensor> sensors = fakeDataSerivce.readSensors();
 		sensors.forEach(sensor -> {
-			narodmonGateway.sendToMqtt(TOPIC_NAME + sensor.getId(), "value:" + sensor.getValue());
+			TemperatureMessage message = new TemperatureMessage();
+			message.setValue(Double.valueOf(sensor.getValue()));
+			message.setTime(sensor.getTime());
+			narodmonGateway.sendToMqtt(TOPIC_NAME + sensor.getId(), message);
 		});
 	}
 	
@@ -72,6 +86,12 @@ public class NarodmonMQTTBridge {
 	@Bean
 	public NarodmonClient narodmonClient(@Value("${narodmon.client.api.key:}") String apiKey, @Value("${narodmon.client.uuid:}") String uuid) {
 		return new NarodmonClient(apiKey, uuid);
+	}
+	
+	
+	@Bean
+	public FakeDataSerivce fakeDataSerivce() {
+		return new FakeDataSerivce();
 	}
 
 	@Bean
@@ -97,6 +117,12 @@ public class NarodmonMQTTBridge {
 	@Bean
 	public MessageChannel mqttOutboundChannel() {
 		return new DirectChannel();
+	}
+	
+	@Bean
+	@Transformer(inputChannel = "jmqttOutboundChannel", outputChannel = "mqttOutboundChannel")
+	public org.springframework.integration.transformer.Transformer dfd() {
+		return new ObjectToJsonTransformer();
 	}
 
 }
